@@ -30,22 +30,24 @@ A school operations system for erxes with three modules, powered by **Gemma 4** 
 >
 > **AI эрэмбэ** — TaskMind Inbox-ыг DigitalOcean дээрх Gemma 4-ийн тооцсон ач холбогдлоор (AI эрэмбэ) эсвэл хугацаагаар эрэмбэлнэ.
 
-Built at **Hacktoberfest Hack Day Ulaanbaatar × erxes Hub** (24 Oct 2026). This folder is the runnable demo. The production target is the `hugjuulai` erxes plugin next to it ([docs/ERXES_INTEGRATION.md](docs/ERXES_INTEGRATION.md)).
+Built at **Hacktoberfest Hack Day Ulaanbaatar × erxes Hub** (24 Oct 2026). This folder is the runnable demo. The production target is the `hugjuulai` erxes plugin next to it ([docs/erxes-integration.md](docs/erxes-integration.md)), and it uses the same layout: `erxes.json`, a pnpm workspace with `api/` and `ui/`, and one folder per module under `api/src/modules/`.
 
 ---
 
 ## Quick start (3 minutes)
 
-Requires **Node.js 22.18+**. TypeScript runs natively, so there's no build step.
+Requires **Node.js 22.18+** and **pnpm** (`npm install -g pnpm`). TypeScript runs natively, so there's no build step.
 
 ```sh
 cd demo
-npm install
+pnpm install
 cp .env.example .env    # then open .env and paste the two keys:
 #   AI_API_KEY=...   Gemini API key            → https://aistudio.google.com/apikey
 #   DO_API_KEY=...   DigitalOcean model access key → control panel › Serverless inference › Model access keys
-npm start               # → http://localhost:3000  (use `npm run dev` to restart on file changes)
+pnpm start              # → http://localhost:3000  (use `pnpm run dev:api` to restart on file changes)
 ```
+
+The API serves the UI too, so this one process is the whole demo. The port comes from `erxes.json` (`api.port`); `PORT` in `.env` overrides it.
 
 | Key | Gemma 4 model | Used for |
 | --- | --- | --- |
@@ -60,7 +62,7 @@ The header shows two dots, "Gemma 4" and "DigitalOcean", green when the key work
 - **429:** the free-tier rate limit. Wait a minute.
 - **Bad `.env` line:** it must read `AI_API_KEY=<key>` / `DO_API_KEY=<key>`. A bare key on its own line isn't read.
 - **DigitalOcean 401/403:** use a *model access key* from Serverless inference, not a personal access token for the API.
-- **"Cannot query field …" in the browser:** the server is older than the page. Stop it (Ctrl+C) and run `npm start` again.
+- **"Cannot query field …" in the browser:** the server is older than the page. Stop it (Ctrl+C) and run `pnpm start` again.
 
 Switch roles from the avatar menu (top right):
 
@@ -73,7 +75,7 @@ Switch roles from the avatar menu (top right):
 
 ## How Gemma 4 is used
 
-All calls go through [`server/ai/llm.ts`](server/ai/llm.ts):
+All calls go through [`api/src/ai/llm.ts`](api/src/ai/llm.ts):
 
 - **Gemini API** (`models/gemma-4-26b-a4b-it:generateContent`) with a `systemInstruction`, a `thinkingConfig` (`AI_THINKING=minimal|high`) and, for photos, `inlineData` image parts.
 - **DigitalOcean Gradient AI serverless inference** (`POST https://inference.do-ai.run/v1/chat/completions`, `Authorization: Bearer <model access key>`, model `gemma-4-31B-it`, `max_completion_tokens`).
@@ -82,11 +84,11 @@ Each job has a provider chain: prioritization tries DigitalOcean first, everythi
 
 | Feature | Gemma 4 gets → returns | Guardrails |
 | --- | --- | --- |
-| **Begin + AI sort** ([begin.ts](server/ai/begin.ts)) · DigitalOcean | Open tasks with hours left, weight, type (exam/homework), difficulty, status, `dependsOn`, `blocked`, `unlocks` → `{next{id, reason, firstStep}, queue[], ranking[{id, score 0–100, why}], summary}` | It may **never** pick a blocked task, and a task never outranks its unfinished prerequisites. The Begin pick is always #1. Prerequisites inherit the deadlines of what they unlock. Tasks the model skipped keep a heuristic score. |
-| **Small steps** ([guide.ts](server/ai/guide.ts)) | Task (homework or exam) → `{overview, steps[], tips[], checkUnderstanding[]}` | Exams get a study plan. Students get coaching, not answers. Steps are validated and clamped. |
+| **Begin + AI sort** ([begin.ts](api/src/modules/taskmind/ai/begin.ts)) · DigitalOcean | Open tasks with hours left, weight, type (exam/homework), difficulty, status, `dependsOn`, `blocked`, `unlocks` → `{next{id, reason, firstStep}, queue[], ranking[{id, score 0–100, why}], summary}` | It may **never** pick a blocked task, and a task never outranks its unfinished prerequisites. The Begin pick is always #1. Prerequisites inherit the deadlines of what they unlock. Tasks the model skipped keep a heuristic score. |
+| **Small steps** ([guide.ts](api/src/modules/taskmind/ai/guide.ts)) | Task (homework or exam) → `{overview, steps[], tips[], checkUnderstanding[]}` | Exams get a study plan. Students get coaching, not answers. Steps are validated and clamped. |
 | **Learning help** | "Explain the idea" / "Similar example" / "Quiz me" or a free question → text | Refuses to hand over answers to graded work. |
-| **ProblemHunt** ([problemhunt.ts](server/ai/problemhunt.ts)) | Report (+ photo → Gemma 4 vision), open groups and the staff/teacher directory → `{category, priority, audience[], duplicateOf, reason}` | The administration is always included. Unknown people and groups are dropped. Duplicates join an existing group, which shares one audience and status. **Never creates tasks or projects.** |
-| **Tone check** ([teacherrate.ts](server/ai/teacherrate.ts)) | One review → `{ok, issue, note, suggestion}` | Criticism of teaching or grading is never flagged; insults, personal remarks and threats are. The student can post the polite rewrite, edit, or post anyway (the administration then sees an "AI warned" tag). |
+| **ProblemHunt** ([problemhunt.ts](api/src/modules/problemhunt/ai/problemhunt.ts)) | Report (+ photo → Gemma 4 vision), open groups and the staff/teacher directory → `{category, priority, audience[], duplicateOf, reason}` | The administration is always included. Unknown people and groups are dropped. Duplicates join an existing group, which shares one audience and status. **Never creates tasks or projects.** |
+| **Tone check** ([teacherrate.ts](api/src/modules/teacherrate/ai/teacherrate.ts)) | One review → `{ok, issue, note, suggestion}` | Criticism of teaching or grading is never flagged; insults, personal remarks and threats are. The student can post the polite rewrite, edit, or post anyway (the administration then sees an "AI warned" tag). |
 | **Teacher summary** | Yes/no counts, stars and up to 25 reviews (no author names) → `{overview, pros[], cons[], tips[]}` | Based only on the reviews; cached until a review is added or removed. Fallback is built from the yes/no percentages. |
 
 Other ways to run Gemma 4: `AI_PROVIDER=openai` with Ollama (`gemma4:e4b`) or vLLM on a DigitalOcean GPU Droplet. See `.env.example`.
@@ -156,34 +158,41 @@ Then set `AI_PROVIDER=openai` and `AI_BASE_URL=http://ollama:11434/v1`.
 
 ## Project structure
 
+Same layout as the `hugjuulai` plugin in `../hugjuulai`:
+
 ```
 demo/
-├── server/
-│   ├── main.ts           HTTP: static UI, /vendor (GSAP, fonts), /graphql
-│   ├── schema.ts         TaskMind API
-│   ├── problems.ts       ProblemHunt API
-│   ├── teachers.ts       TeacherRate API
-│   ├── store.ts, seed.ts JSON store with demo data (→ Mongoose in the plugin)
-│   ├── types.ts
-│   └── ai/
-│       ├── llm.ts        Gemma 4 client: Gemini API, DigitalOcean, OpenAI-compatible; provider chains
-│       ├── begin.ts      Begin + AI ranking: dependency analysis, prompt, validation, fallback
-│       ├── guide.ts      small steps + learning help
-│       ├── problemhunt.ts  classify, route, group duplicates (+ vision)
-│       ├── teacherrate.ts  tone check, teacher summary
-│       └── json.ts
-├── public/               UI (Hackum design language, GSAP motion, MN/EN)
-├── test/                 unit tests, Gemini request-format test, mock Gemma server
-└── docs/ERXES_INTEGRATION.md
+├── erxes.json                 plugin identity and API port (read by api/src/config.ts)
+├── package.json, pnpm-workspace.yaml   workspace: api + ui
+├── api/
+│   ├── src/
+│   │   ├── main.ts            HTTP: /graphql, /health, the UI (ui/public, ui/src, /vendor)
+│   │   ├── config.ts          erxes.json + env (PORT, DB_PATH)
+│   │   ├── graphql/schema.ts  shared types (users, classes, AI status) + every module's typeDefs/resolvers
+│   │   ├── store.ts, seed.ts  JSON store with demo data (→ Mongoose in the plugin)
+│   │   ├── types.ts           users, classes, Lang, AiSource
+│   │   ├── ai/
+│   │   │   ├── llm.ts         Gemma 4 client: Gemini API, DigitalOcean, OpenAI-compatible; provider chains
+│   │   │   └── json.ts
+│   │   └── modules/
+│   │       ├── taskmind/      graphql.ts · ai/begin.ts (Begin + AI ranking) · ai/guide.ts (small steps,
+│   │       │                  learning help) · db/definitions/taskmind.ts · db/models/Tasks.ts
+│   │       ├── problemhunt/   graphql.ts · ai/problemhunt.ts (classify, route, group, vision) · db/definitions/
+│   │       └── teacherrate/   graphql.ts · ai/teacherrate.ts (tone check, summary) · db/definitions/
+│   └── test/                  unit tests, Gemini & DigitalOcean request formats, mock Gemma server
+├── ui/
+│   ├── public/                index.html, 3D icons
+│   └── src/                   main.js (views), graphql.js (documents), i18n.js (MN/EN), motion.js (GSAP), styles.css
+└── docs/erxes-integration.md
 ```
 
 ## Tests and rehearsal
 
 ```sh
-npm test         # Begin + ranking, guides, ProblemHunt, TeacherRate, Gemini & DigitalOcean request formats
-npm run check    # strict TypeScript
-npm run mock     # stand-in Gemma 4 (answers are marked "(mock)")
-AI_API_KEY=mock AI_BASE_URL=http://localhost:11500/v1beta DO_API_KEY=mock DO_BASE_URL=http://localhost:11500/v1 npm start
+pnpm test        # Begin + ranking, guides, ProblemHunt, TeacherRate, Gemini & DigitalOcean request formats
+pnpm run check   # strict TypeScript
+pnpm run mock    # stand-in Gemma 4 (answers are marked "(mock)")
+AI_API_KEY=mock AI_BASE_URL=http://localhost:11500/v1beta DO_API_KEY=mock DO_BASE_URL=http://localhost:11500/v1 pnpm start
 ```
 
 ## Demo script (≈3 min)

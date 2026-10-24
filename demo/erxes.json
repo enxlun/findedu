@@ -1,0 +1,17 @@
+{
+  "name": "hugjuulai",
+  "title": "Hugjuulai",
+  "description": "School operations system for erxes: TaskMind AI, ProblemHunt and TeacherRate, powered by Gemma 4",
+  "version": "0.1.0",
+  "api": {
+    "framework": "standalone",
+    "runtime": "node",
+    "port": 3000,
+    "graphql": "/graphql",
+    "health": "/health"
+  },
+  "ui": {
+    "framework": "vanilla",
+    "name": "hugjuulai"
+  }
+}

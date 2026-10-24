@@ -1,0 +1,11 @@
+{
+  "name": "hugjuulai_demo_ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/nunito-sans": "^5.3.0",
+    "gsap": "^3.15.0"
+  }
+}
