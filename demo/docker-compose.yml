@@ -1,0 +1,32 @@
+# Run on any Docker host (e.g. a DigitalOcean Droplet):
+#   AI_API_KEY=<Gemini API key> DO_API_KEY=<DigitalOcean model access key> docker compose up -d --build
+# (or put both in a .env file next to this one).
+# Gemma 4 runs on the Gemini API and on DigitalOcean serverless inference, so no GPU is needed.
+# To run Gemma 4 yourself instead, see the `ollama` profile below:
+#   docker compose --profile local-gemma up -d --build
+#   docker compose exec ollama ollama pull gemma4:e4b
+services:
+  app:
+    build: .
+    environment:
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemma-4-26b-a4b-it}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_THINKING: ${AI_THINKING:-minimal}
+      DO_API_KEY: ${DO_API_KEY:-}
+      DO_MODEL: ${DO_MODEL:-gemma-4-31B-it}
+      PORT: 8080
+    ports:
+      - "80:8080"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-gemma"]
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama: {}

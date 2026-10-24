@@ -1,0 +1,29 @@
+{
+  "name": "hugjuulai-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hugjuulai: a school operations system (сургалтын үйл ажиллагааны систем) on erxes. AI-ranked tasks with guides, class progress, and school issue reporting with AI triage, powered by Gemma 4.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/main.ts",
+    "dev": "node --watch --env-file-if-exists=.env server/main.ts",
+    "reset": "node -e \"require('fs').rmSync('data/db.json',{force:true})\"",
+    "test": "node --test test/*.test.ts",
+    "check": "tsc -p .",
+    "mock": "node test/mock-ai.ts"
+  },
+  "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/nunito-sans": "^5.3.0",
+    "graphql": "^16.11.0",
+    "gsap": "^3.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3"
+  }
+}
